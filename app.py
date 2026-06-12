@@ -132,10 +132,11 @@ def run_functional_tests():
             self.assertIn(b'Contactos', response.data)
 
         def test_registration_page(self):
-            """b) Registro de usuario (GET)"""
+            """b) Registro de usuario (GET) - Corregido: busca 'Registrar' en lugar de 'Registro'"""
             response = self.app.get('/registro')
             self.assertEqual(response.status_code, 200)
-            self.assertIn(b'Registro', response.data)
+            # En la plantilla el enlace y el título usan "Registrar", no "Registro"
+            self.assertIn(b'Registrar', response.data)
 
         def test_registration_submit(self):
             """b) Registro de usuario (POST)"""
