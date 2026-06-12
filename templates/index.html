@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio - Directorio de Contactos{% endblock %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-body text-center">
+                <h1 class="card-title display-4 mb-3">📞 Directorio de Contactos</h1>
+                <p class="card-text text-muted fs-5">
+                    Aplicación para registrar y consultar contactos de forma simple y rápida.
+                </p>
+                
+                <div class="row mt-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <h3 class="display-6">{{ total_contactos }}</h3>
+                                <p class="card-text">Contactos Registrados</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-success text-white">
+                            <div class="card-body">
+                                <h3 class="display-6">✓</h3>
+                                <p class="card-text">Sistema Activo</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row mt-4">
+                    <div class="col-md-6 mb-3">
+                        <a href="/registro" class="btn btn-primary btn-lg w-100">
+                            ➕ Registrar Contacto
+                        </a>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <a href="/contactos" class="btn btn-secondary btn-lg w-100">
+                            👥 Ver Contactos
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h5 class="card-title">ℹ️ Instrucciones</h5>
+                        <ul class="mb-0">
+                            <li>Haz clic en <strong>"Registrar Contacto"</strong> para agregar un nuevo contacto.</li>
+                            <li>Haz clic en <strong>"Ver Contactos"</strong> para listar todos los contactos registrados.</li>
+                            <li>Puedes buscar contactos por nombre en la sección de contactos.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Contactos - Directorio de Contactos{% endblock %}
+
+{% block content %}
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h3 class="mb-0">👥 Contactos Registrados</h3>
+                <a href="/registro" class="btn btn-sm btn-light">➕ Nuevo Contacto</a>
+            </div>
+            <div class="card-body">
+                <!-- Buscador -->
+                <form method="GET" action="{{ url_for('contactos') }}" class="mb-4">
+                    <div class="input-group input-group-lg">
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            placeholder="Buscar por nombre..." 
+                            name="busqueda"
+                            value="{{ busqueda }}"
+                        >
+                        <button class="btn btn-primary" type="submit">
+                            🔍 Buscar
+                        </button>
+                        {% if busqueda %}
+                            <a href="/contactos" class="btn btn-secondary">
+                                ✕ Limpiar
+                            </a>
+                        {% endif %}
+                    </div>
+                </form>
+
+                <!-- Tabla de Contactos -->
+                {% if contactos %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre</th>
+                                    <th>Teléfono</th>
+                                    <th>Correo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contacto in contactos %}
+                                    <tr>
+                                        <td class="fw-bold">{{ contacto.id }}</td>
+                                        <td>{{ contacto.nombre }}</td>
+                                        <td>
+                                            <a href="tel:{{ contacto.telefono }}" class="text-decoration-none">
+                                                {{ contacto.telefono }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a href="mailto:{{ contacto.correo }}" class="text-decoration-none">
+                                                {{ contacto.correo }}
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-info mb-0">
+                        <strong>Total de contactos:</strong> {{ contactos|length }}
+                        {% if busqueda %}
+                            | <strong>Resultados de búsqueda:</strong> "{{ busqueda }}"
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning text-center" role="alert">
+                        {% if busqueda %}
+                            <strong>No se encontraron contactos</strong> que coincidan con "{{ busqueda }}"
+                        {% else %}
+                            <strong>No hay contactos registrados</strong>
+                            <br>
+                            <a href="/registro" class="btn btn-primary btn-sm mt-3">
+                                ➕ Registrar el primer contacto
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
