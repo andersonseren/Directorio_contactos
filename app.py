@@ -1,7 +1,5 @@
 import os
 import re
-import unittest
-from io import StringIO
 from flask import Flask, render_template, request, redirect, flash, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
@@ -107,110 +105,219 @@ def contactos():
     
     return render_template('contactos.html', contactos=contactos_list, busqueda=busqueda)
 
-# ============= RUTA DE PRUEBAS FUNCIONALES =============
+# ============= RUTA DE PRUEBAS FUNCIONALES (INFORME HTML DESCRIPTIVO) =============
 @app.route('/test')
 def run_functional_tests():
-    """Ejecuta el caso de prueba funcional y devuelve los resultados."""
-    class FunctionalTestCase(unittest.TestCase):
-        def setUp(self):
-            self.app = app.test_client()
-            self.app.testing = True
-            # Limpiar datos de prueba previos
-            with app.app_context():
-                Contacto.query.filter(Contacto.nombre.like('Test_%')).delete()
-                db.session.commit()
+    """Ejecuta pruebas funcionales y muestra un informe claro en HTML."""
 
-        def tearDown(self):
-            with app.app_context():
-                Contacto.query.filter(Contacto.nombre.like('Test_%')).delete()
-                db.session.commit()
+    # Limpiar datos de prueba anteriores
+    with app.app_context():
+        Contacto.query.filter(Contacto.nombre.like('Test_%')).delete()
+        db.session.commit()
 
-        def test_home_page(self):
-            """a) Home Page – Index"""
-            response = self.app.get('/')
-            self.assertEqual(response.status_code, 200)
-            self.assertIn(b'Contactos', response.data)
+    # Lista para almacenar los resultados de cada prueba
+    resultados = []
 
-        def test_registration_page(self):
-            """b) Registro de usuario (GET) - Corregido: busca 'Registrar' en lugar de 'Registro'"""
-            response = self.app.get('/registro')
-            self.assertEqual(response.status_code, 200)
-            # En la plantilla el enlace y el título usan "Registrar", no "Registro"
-            self.assertIn(b'Registrar', response.data)
+    # ------------------------------------------------------------
+    # PRUEBA A: Home Page - Index
+    # ------------------------------------------------------------
+    with app.test_client() as cliente:
+        response = cliente.get('/')
+        test_paso = response.status_code == 200 and b'Contactos' in response.data
+        resultados.append({
+            'id': 'A',
+            'nombre': 'Home Page - Index',
+            'descripcion': 'Verifica que la página principal cargue correctamente y contenga "Contactos".',
+            'resultado': f'Código {response.status_code}, contiene "Contactos"' if test_paso else f'Código {response.status_code}, NO contiene "Contactos"',
+            'estado': 'PASÓ ✅' if test_paso else 'FALLÓ ❌',
+            'paso': test_paso
+        })
 
-        def test_registration_submit(self):
-            """b) Registro de usuario (POST)"""
-            data = {
-                'nombre': 'Test_Funcional',
-                'telefono': '123456789',
-                'correo': 'test@example.com'
-            }
-            response = self.app.post('/registro', data=data, follow_redirects=True)
-            self.assertEqual(response.status_code, 200)
-            self.assertIn(b'Contacto registrado exitosamente', response.data)
+    # ------------------------------------------------------------
+    # PRUEBA B: Registro de usuario (GET) - Página 2
+    # ------------------------------------------------------------
+    with app.test_client() as cliente:
+        response = cliente.get('/registro')
+        test_paso = response.status_code == 200 and b'Registrar' in response.data
+        resultados.append({
+            'id': 'B',
+            'nombre': 'Registro de usuario (página 2)',
+            'descripcion': 'Muestra el formulario de registro con el enlace "Registrar".',
+            'resultado': f'Código {response.status_code}, contiene "Registrar"' if test_paso else f'Código {response.status_code}, NO contiene "Registrar"',
+            'estado': 'PASÓ ✅' if test_paso else 'FALLÓ ❌',
+            'paso': test_paso
+        })
 
-        def test_embedded_search(self):
-            """c) Consulta de información embebida en página 2"""
-            # Asegurar que existe el contacto de prueba
-            with app.app_context():
-                if not Contacto.query.filter_by(nombre='Test_Funcional').first():
-                    c = Contacto(nombre='Test_Funcional', telefono='123456789', correo='test@example.com')
-                    db.session.add(c)
-                    db.session.commit()
-            # Búsqueda en /contactos?busqueda=Test
-            response = self.app.get('/contactos?busqueda=Test_Funcional')
-            self.assertEqual(response.status_code, 200)
-            self.assertIn(b'Test_Funcional', response.data)
-            self.assertIn(b'123456789', response.data)
+    # ------------------------------------------------------------
+    # PRUEBA B (POST): Envío del formulario de registro
+    # ------------------------------------------------------------
+    with app.test_client() as cliente:
+        data = {
+            'nombre': 'Test_Funcional',
+            'telefono': '123456789',
+            'correo': 'test@example.com'
+        }
+        response = cliente.post('/registro', data=data, follow_redirects=True)
+        test_paso = response.status_code == 200 and b'Contacto registrado exitosamente' in response.data
+        resultados.append({
+            'id': 'B2',
+            'nombre': 'Registro de usuario (POST)',
+            'descripcion': 'Envía datos válidos y espera confirmación de registro exitoso.',
+            'resultado': f'Código {response.status_code}, mensaje de éxito presente' if test_paso else f'Código {response.status_code}, mensaje de éxito ausente',
+            'estado': 'PASÓ ✅' if test_paso else 'FALLÓ ❌',
+            'paso': test_paso
+        })
 
-        def test_register_from_main_module(self):
-            """d) Registro desde el módulo principal"""
-            with app.app_context():
-                nuevo = Contacto(
-                    nombre='Test_ModuloPrincipal',
-                    telefono='987654321',
-                    correo='modulo@example.com'
-                )
-                db.session.add(nuevo)
-                db.session.commit()
-                consulta = Contacto.query.filter_by(nombre='Test_ModuloPrincipal').first()
-                self.assertIsNotNone(consulta)
-                self.assertEqual(consulta.telefono, '987654321')
-
-        def test_query_from_main_module(self):
-            """e) Consulta desde el módulo principal"""
-            with app.app_context():
-                c = Contacto(nombre='Test_Query', telefono='111222333', correo='query@example.com')
+    # ------------------------------------------------------------
+    # PRUEBA C: Consulta embebida en página 2 (búsqueda)
+    # ------------------------------------------------------------
+    with app.test_client() as cliente:
+        # Aseguramos que el contacto exista
+        with app.app_context():
+            if not Contacto.query.filter_by(nombre='Test_Funcional').first():
+                c = Contacto(nombre='Test_Funcional', telefono='123456789', correo='test@example.com')
                 db.session.add(c)
                 db.session.commit()
-                encontrado = Contacto.query.filter(Contacto.nombre.like('%Query%')).all()
-                self.assertTrue(len(encontrado) > 0)
-                self.assertEqual(encontrado[0].correo, 'query@example.com')
 
-    # Ejecutar pruebas y capturar resultados
-    suite = unittest.TestLoader().loadTestsFromTestCase(FunctionalTestCase)
-    stream = StringIO()
-    result = unittest.TextTestRunner(stream=stream, verbosity=2).run(suite)
+        response = cliente.get('/contactos?busqueda=Test_Funcional')
+        test_paso = response.status_code == 200 and b'Test_Funcional' in response.data and b'123456789' in response.data
+        resultados.append({
+            'id': 'C',
+            'nombre': 'Consulta embebida en página 2',
+            'descripcion': 'Busca "Test_Funcional" y verifica que aparezca en la tabla con su teléfono.',
+            'resultado': f'Código {response.status_code}, datos encontrados en la página' if test_paso else f'Código {response.status_code}, datos no encontrados',
+            'estado': 'PASÓ ✅' if test_paso else 'FALLÓ ❌',
+            'paso': test_paso
+        })
 
-    # Construir informe JSON
-    tests_info = []
-    for test_case, reason in result.failures:
-        tests_info.append({'test': str(test_case), 'status': 'FAIL', 'reason': reason})
-    for test_case, reason in result.errors:
-        tests_info.append({'test': str(test_case), 'status': 'ERROR', 'reason': reason})
+    # ------------------------------------------------------------
+    # PRUEBA D: Registro desde el módulo principal (directo con modelo)
+    # ------------------------------------------------------------
+    with app.app_context():
+        try:
+            nuevo = Contacto(
+                nombre='Test_ModuloPrincipal',
+                telefono='987654321',
+                correo='modulo@example.com'
+            )
+            db.session.add(nuevo)
+            db.session.commit()
+            consulta = Contacto.query.filter_by(nombre='Test_ModuloPrincipal').first()
+            test_paso = consulta is not None and consulta.telefono == '987654321'
+            resultados.append({
+                'id': 'D',
+                'nombre': 'Registro desde el módulo principal',
+                'descripcion': 'Crea un contacto directamente con el modelo y verifica que se guardó.',
+                'resultado': 'Contacto guardado y recuperado correctamente' if test_paso else 'El contacto no se guardó o no se recuperó',
+                'estado': 'PASÓ ✅' if test_paso else 'FALLÓ ❌',
+                'paso': test_paso
+            })
+        except Exception as e:
+            resultados.append({
+                'id': 'D',
+                'nombre': 'Registro desde el módulo principal',
+                'descripcion': 'Crea un contacto directamente con el modelo.',
+                'resultado': f'Error inesperado: {str(e)}',
+                'estado': 'ERROR ⚠️',
+                'paso': False
+            })
 
-    total = result.testsRun
-    failures = len(result.failures)
-    errors = len(result.errors)
-    passed = total - failures - errors
+    # ------------------------------------------------------------
+    # PRUEBA E: Consulta desde el módulo principal
+    # ------------------------------------------------------------
+    with app.app_context():
+        try:
+            c = Contacto(nombre='Test_Query', telefono='111222333', correo='query@example.com')
+            db.session.add(c)
+            db.session.commit()
+            encontrados = Contacto.query.filter(Contacto.nombre.like('%Query%')).all()
+            test_paso = len(encontrados) > 0 and encontrados[0].correo == 'query@example.com'
+            resultados.append({
+                'id': 'E',
+                'nombre': 'Consulta desde el módulo principal',
+                'descripcion': 'Inserta y luego consulta usando filtros con like.',
+                'resultado': f'Se encontraron {len(encontrados)} registro(s), correo correcto' if test_paso else f'No se encontró el registro o correo incorrecto',
+                'estado': 'PASÓ ✅' if test_paso else 'FALLÓ ❌',
+                'paso': test_paso
+            })
+        except Exception as e:
+            resultados.append({
+                'id': 'E',
+                'nombre': 'Consulta desde el módulo principal',
+                'descripcion': 'Inserta y consulta usando filtros.',
+                'resultado': f'Error inesperado: {str(e)}',
+                'estado': 'ERROR ⚠️',
+                'paso': False
+            })
 
-    return jsonify({
-        'total_tests': total,
-        'passed': passed,
-        'failures': failures,
-        'errors': errors,
-        'details': tests_info
-    })
+    # Limpiar datos de prueba después de las pruebas
+    with app.app_context():
+        Contacto.query.filter(Contacto.nombre.like('Test_%')).delete()
+        db.session.commit()
+
+    # Si se solicita JSON expresamente, se devuelve el formato original
+    if request.headers.get('Accept') == 'application/json' or request.args.get('format') == 'json':
+        total = len(resultados)
+        pasadas = sum(1 for r in resultados if r['paso'])
+        return jsonify({
+            'total_tests': total,
+            'passed': pasadas,
+            'failures': total - pasadas,
+            'errors': 0,
+            'details': [r for r in resultados if not r['paso']]
+        })
+
+    # Construir HTML descriptivo
+    html = """
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Resultados de Pruebas Funcionales</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body class="bg-light">
+        <div class="container py-5">
+            <h1 class="mb-4">🧪 Pruebas Funcionales del Directorio de Contactos</h1>
+            <div class="card shadow">
+                <div class="card-body">
+                    <table class="table table-striped align-middle">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Prueba</th>
+                                <th>Descripción</th>
+                                <th>Resultado concreto</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+    """
+    for r in resultados:
+        html += f"""
+                            <tr>
+                                <td><strong>{r['id']}: {r['nombre']}</strong></td>
+                                <td>{r['descripcion']}</td>
+                                <td>{r['resultado']}</td>
+                                <td><span class="badge {'bg-success' if r['paso'] else 'bg-danger'} fs-6">{r['estado']}</span></td>
+                            </tr>
+        """
+    total = len(resultados)
+    pasadas = sum(1 for r in resultados if r['paso'])
+    html += f"""
+                        </tbody>
+                    </table>
+                    <div class="alert alert-info mt-3">
+                        <strong>Resumen:</strong> {pasadas} de {total} pruebas pasaron correctamente.
+                    </div>
+                    <a href="/test?format=json" class="btn btn-outline-secondary btn-sm">Ver JSON</a>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return html
 
 # ============= CREAR TABLAS =============
 with app.app_context():
