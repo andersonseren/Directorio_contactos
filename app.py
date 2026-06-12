@@ -1,6 +1,8 @@
 import os
 import re
-from flask import Flask, render_template, request, redirect, flash, url_for
+import unittest
+from io import StringIO
+from flask import Flask, render_template, request, redirect, flash, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 
@@ -104,6 +106,110 @@ def contactos():
         contactos_list = Contacto.query.all()
     
     return render_template('contactos.html', contactos=contactos_list, busqueda=busqueda)
+
+# ============= RUTA DE PRUEBAS FUNCIONALES =============
+@app.route('/test')
+def run_functional_tests():
+    """Ejecuta el caso de prueba funcional y devuelve los resultados."""
+    class FunctionalTestCase(unittest.TestCase):
+        def setUp(self):
+            self.app = app.test_client()
+            self.app.testing = True
+            # Limpiar datos de prueba previos
+            with app.app_context():
+                Contacto.query.filter(Contacto.nombre.like('Test_%')).delete()
+                db.session.commit()
+
+        def tearDown(self):
+            with app.app_context():
+                Contacto.query.filter(Contacto.nombre.like('Test_%')).delete()
+                db.session.commit()
+
+        def test_home_page(self):
+            """a) Home Page – Index"""
+            response = self.app.get('/')
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'Contactos', response.data)
+
+        def test_registration_page(self):
+            """b) Registro de usuario (GET)"""
+            response = self.app.get('/registro')
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'Registro', response.data)
+
+        def test_registration_submit(self):
+            """b) Registro de usuario (POST)"""
+            data = {
+                'nombre': 'Test_Funcional',
+                'telefono': '123456789',
+                'correo': 'test@example.com'
+            }
+            response = self.app.post('/registro', data=data, follow_redirects=True)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'Contacto registrado exitosamente', response.data)
+
+        def test_embedded_search(self):
+            """c) Consulta de información embebida en página 2"""
+            # Asegurar que existe el contacto de prueba
+            with app.app_context():
+                if not Contacto.query.filter_by(nombre='Test_Funcional').first():
+                    c = Contacto(nombre='Test_Funcional', telefono='123456789', correo='test@example.com')
+                    db.session.add(c)
+                    db.session.commit()
+            # Búsqueda en /contactos?busqueda=Test
+            response = self.app.get('/contactos?busqueda=Test_Funcional')
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(b'Test_Funcional', response.data)
+            self.assertIn(b'123456789', response.data)
+
+        def test_register_from_main_module(self):
+            """d) Registro desde el módulo principal"""
+            with app.app_context():
+                nuevo = Contacto(
+                    nombre='Test_ModuloPrincipal',
+                    telefono='987654321',
+                    correo='modulo@example.com'
+                )
+                db.session.add(nuevo)
+                db.session.commit()
+                consulta = Contacto.query.filter_by(nombre='Test_ModuloPrincipal').first()
+                self.assertIsNotNone(consulta)
+                self.assertEqual(consulta.telefono, '987654321')
+
+        def test_query_from_main_module(self):
+            """e) Consulta desde el módulo principal"""
+            with app.app_context():
+                c = Contacto(nombre='Test_Query', telefono='111222333', correo='query@example.com')
+                db.session.add(c)
+                db.session.commit()
+                encontrado = Contacto.query.filter(Contacto.nombre.like('%Query%')).all()
+                self.assertTrue(len(encontrado) > 0)
+                self.assertEqual(encontrado[0].correo, 'query@example.com')
+
+    # Ejecutar pruebas y capturar resultados
+    suite = unittest.TestLoader().loadTestsFromTestCase(FunctionalTestCase)
+    stream = StringIO()
+    result = unittest.TextTestRunner(stream=stream, verbosity=2).run(suite)
+
+    # Construir informe JSON
+    tests_info = []
+    for test_case, reason in result.failures:
+        tests_info.append({'test': str(test_case), 'status': 'FAIL', 'reason': reason})
+    for test_case, reason in result.errors:
+        tests_info.append({'test': str(test_case), 'status': 'ERROR', 'reason': reason})
+
+    total = result.testsRun
+    failures = len(result.failures)
+    errors = len(result.errors)
+    passed = total - failures - errors
+
+    return jsonify({
+        'total_tests': total,
+        'passed': passed,
+        'failures': failures,
+        'errors': errors,
+        'details': tests_info
+    })
 
 # ============= CREAR TABLAS =============
 with app.app_context():
